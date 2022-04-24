@@ -8,6 +8,7 @@ defmodule Neo4jExplayground.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      {Bolt.Sips, Application.get_env(:bolt_sips, Bolt)},
       # Start the Telemetry supervisor
       Neo4jExplaygroundWeb.Telemetry,
       # Start the PubSub system
