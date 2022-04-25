@@ -4,13 +4,8 @@ defmodule Neo4jExplaygroundTest.BasicTest do
   alias Playground.Bracket
 
   describe "neo4j" do
-    test "works" do
-      conn = Bolt.Sips.conn()
-
-      Bolt.Sips.query!(conn, "
-        MATCH (n)
-        DETACH DELETE n
-      ")
+    test "store works" do
+      Bolt.Sips.query!(Bolt.Sips.conn(), "MATCH (n) DETACH DELETE n")
 
       # Bolt.Sips.query!(conn, "
       #   CREATE (m1: Match {tournament_id: 1})-[:LEFT]->(m2: Match {tournament_id: 1})-[:LEFT]->(e1: Entry {tournament_id: 1, name: 'a'})
@@ -18,13 +13,19 @@ defmodule Neo4jExplaygroundTest.BasicTest do
       #   CREATE (m1)-[:RIGHT]->(e3: Entry {tournament_id: 1, name: 'c'})
       # ")
 
+      tournament_id = 1
+
       5
-      |> Bracket.test(1)
+      |> Bracket.test(tournament_id)
       |> Bracket.store_parsed_match_list()
 
-      8
-      |> Bracket.test(1)
-      |> Bracket.store_parsed_match_list()
+      # 8
+      # |> Bracket.test(1)
+      # |> Bracket.store_parsed_match_list()
+
+      tournament_id
+      |> Bracket.load_match_list()
+      |> IO.inspect()
     end
   end
 end

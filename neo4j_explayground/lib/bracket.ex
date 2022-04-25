@@ -64,11 +64,85 @@ defmodule Playground.Bracket do
     end
   end
 
+  def load_match_list(tournament_id) do
+    root_node = Bolt.Sips.conn()
+      |> Bolt.Sips.query!("
+        MATCH (root_match: Match)
+        WHERE root_match.tournament_id = #{tournament_id} AND root_match.is_root
+        RETURN root_match
+      ")
+      |> Bolt.Sips.Response.first()
+      |> Map.get("root_match")
+
+    __MODULE__.load_match_list(tournament_id, root_node, %Match{round: root_node.properties["round"], tournament_id: tournament_id})
+  end
+
+  def load_match_list(tournament_id, parent_node, acc_match) do
+    # NOTE: LEFTを確認してRIGHTを確認する
+
+    acc_match = load_left_node(tournament_id, parent_node, acc_match)
+    acc_match = load_right_node(tournament_id, parent_node, acc_match)
+
+    acc_match
+  end
+
+  defp load_left_node(tournament_id, parent_node, acc_match) do
+    left_node = Bolt.Sips.conn()
+      |> Bolt.Sips.query!("
+        MATCH (parent_match: Match)-[:LEFT]->(node)
+        WHERE id(parent_match) = #{parent_node.id}
+        RETURN node
+      ")
+      |> Bolt.Sips.Response.first()
+      |> Map.get("node")
+
+    if is_nil(left_node) do
+      acc_match
+    else
+      cond do
+        Enum.member?(left_node.labels, "Match") ->
+          # 再帰したmatchをleftにつなげてやればいい
+          acc = __MODULE__.load_match_list(tournament_id, left_node, acc_match)
+          acc = Map.put(acc, :round, left_node.properties["round"])
+          Map.put(acc_match, :left, acc)
+        Enum.member?(left_node.labels, "Entry") ->
+          # entryをそのまま返してやればいい
+          Map.put(acc_match, :left, %Entry{name: left_node.properties["name"], tournament_id: left_node.properties["tournament_id"]})
+      end
+    end
+  end
+
+  defp load_right_node(tournament_id, parent_node, acc_match) do
+    right_node = Bolt.Sips.conn()
+      |> Bolt.Sips.query!("
+        MATCH (parent_match: Match)-[:RIGHT]->(node)
+        WHERE id(parent_match) = #{parent_node.id}
+        RETURN node
+      ")
+      |> Bolt.Sips.Response.first()
+      |> Map.get("node")
+
+    if is_nil(right_node) do
+      acc_match
+    else
+      cond do
+        Enum.member?(right_node.labels, "Match") ->
+          # 再帰したmatchをleftにつなげてやればいい
+          acc = __MODULE__.load_match_list(tournament_id, right_node, acc_match)
+          acc = Map.put(acc, :round, right_node.properties["round"])
+          Map.put(acc_match, :right, acc)
+        Enum.member?(right_node.labels, "Entry") ->
+          # entryをそのまま返してやればいい
+          Map.put(acc_match, :right, %Entry{name: right_node.properties["name"], tournament_id: right_node.properties["tournament_id"]})
+      end
+    end
+  end
+
   def store_parsed_match_list(%Match{} = match) do
     # NOTE: rootのノードを作成する箇所
     root_node = Bolt.Sips.conn()
       |> Bolt.Sips.query!("
-        CREATE (m: Match {round: #{match.round}, tournament_id: #{match.tournament_id}})
+        CREATE (m: Match {round: #{match.round}, tournament_id: #{match.tournament_id}, is_root: true})
         RETURN m
       ")
       |> Bolt.Sips.Response.first()
