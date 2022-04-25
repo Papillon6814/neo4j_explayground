@@ -1,4 +1,4 @@
-defmodule Playground.Bracket2 do
+defmodule Playground.Bracket do
   defmodule Entry do
     @type t() :: %__MODULE__{
       name: String.t
@@ -26,15 +26,15 @@ defmodule Playground.Bracket2 do
 
     def insert(match = %Match{}, entry = %Entry{}) do
       case [match.left, match.right] do
-        [ml = nil, mr = nil] ->
+        [nil, nil] ->
            match |> Map.replace(:left, entry)
-        [ml = %Entry{}, mr = nil] ->
+        [%Entry{}, nil] ->
           match |> Map.replace(:right, entry)
         [ml = %Entry{}, mr = %Entry{}] ->
           match
           |> Map.replace(:left, %Match{round: match.round+1, index: 0, left: ml, right: mr})
           |> Map.replace(:right, entry)
-        [ml = %Match{}, mr = %Entry{}] ->
+        [%Match{}, mr = %Entry{}] ->
           match.right |> put_in(%Match{round: match.round+1, index: 0, left: mr, right: entry})
         [ml = %Match{}, mr = %Match{}] ->
           ml_size = Match.count_children(ml)
@@ -52,7 +52,7 @@ defmodule Playground.Bracket2 do
       Enum.reduce([match.left, match.right], count, fn e, acc ->
         case e do
           x = %Match{} -> count_children(x, acc)
-          x = %Entry{} -> acc + 1
+          %Entry{} -> acc + 1
         end
       end)
     end
@@ -61,10 +61,9 @@ defmodule Playground.Bracket2 do
 
   def test(size) do
     # entrys = Enum.to_list(1..size)
-    entrys =
-    ?a..?z
-    |> Enum.map(fn x -> <<x :: utf8>> end)
-    |> Enum.take(size)
+    entrys = ?a..?z
+      |> Enum.map(fn x -> <<x :: utf8>> end)
+      |> Enum.take(size)
 
     entrys = Enum.map(entrys, fn n -> %Entry{name: n} end)
     bracket = Enum.reduce(entrys, %Match{}, fn e, m ->
